@@ -1,0 +1,27 @@
+<div class="app-container">
+  <nav class="navbar">
+    <a routerLink="/" class="navbar-brand">
+      <div class="brand-logo">
+        <i class="fas fa-warehouse"></i>
+      </div>
+      <div class="brand-text">
+        <h1>StockFlow</h1>
+        <span>Transfer Management</span>
+      </div>
+    </a>
+    <div class="navbar-links">
+      <a routerLink="/warehouses" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link">
+        <i class="fas fa-building"></i>
+        Warehouses
+      </a>
+      <a routerLink="/transfers" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-link">
+        <i class="fas fa-exchange-alt"></i>
+        Transfers
+      </a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

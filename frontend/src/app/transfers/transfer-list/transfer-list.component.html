@@ -1,0 +1,102 @@
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>Transfers</h2>
+    <p>Track stock movements between warehouses</p>
+  </div>
+  <a routerLink="/transfers/create" class="btn btn-primary">
+    <i class="fas fa-plus"></i>
+    New Transfer
+  </a>
+</div>
+
+<div class="filters-bar">
+  <select class="form-select" [(ngModel)]="statusFilter" (change)="applyFilters()">
+    <option value="">All Statuses</option>
+    @for (status of statuses; track status) {
+      <option [value]="status">{{ status }}</option>
+    }
+  </select>
+  <select class="form-select" [(ngModel)]="warehouseFilter" (change)="applyFilters()">
+    <option value="">All Warehouses</option>
+    @for (wh of warehouses; track wh._id) {
+      <option [value]="wh._id">{{ wh.name }}</option>
+    }
+  </select>
+  @if (statusFilter || warehouseFilter) {
+    <button class="btn btn-secondary btn-sm" (click)="clearFilters()">
+      <i class="fas fa-times"></i>
+      Clear
+    </button>
+  }
+</div>
+
+@if (error) {
+  <div class="alert alert-error">
+    <i class="fas fa-exclamation-circle"></i>
+    {{ error }}
+  </div>
+}
+
+@if (loading) {
+  <div class="loading">
+    <div class="spinner"></div>
+    <span class="loading-text">Loading transfers...</span>
+  </div>
+} @else if (transfers.length === 0) {
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <i class="fas fa-exchange-alt"></i>
+      </div>
+      <h3>No transfers found</h3>
+      <p>Create a transfer to move stock between warehouses</p>
+      <a routerLink="/transfers/create" class="btn btn-primary" style="margin-top: 1rem;">
+        <i class="fas fa-plus"></i>
+        Create Transfer
+      </a>
+    </div>
+  </div>
+} @else {
+  <div class="card">
+    <div class="data-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Source</th>
+            <th>Destination</th>
+            <th>SKU</th>
+            <th>Quantity</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (transfer of transfers; track transfer._id) {
+            <tr>
+              <td><span class="transfer-code">{{ transfer.transferCode }}</span></td>
+              <td>{{ getWarehouseName(transfer.sourceWarehouse) }}</td>
+              <td>{{ getWarehouseName(transfer.destWarehouse) }}</td>
+              <td><span class="sku-tag">{{ transfer.sku }}</span></td>
+              <td><span class="qty-display">{{ transfer.quantity }}</span></td>
+              <td>
+                <span class="badge" [class]="'badge-' + transfer.status">
+                  <span class="badge-dot"></span>
+                  {{ transfer.status }}
+                </span>
+              </td>
+              <td style="color: var(--gray-500); font-size: 0.8125rem;">{{ transfer.createdAt | date:'shortDate' }}</td>
+              <td>
+                <a [routerLink]="['/transfers', transfer._id]" class="btn btn-secondary btn-sm">
+                  <i class="fas fa-eye"></i>
+                  View
+                </a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}

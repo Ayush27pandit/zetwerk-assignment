@@ -1,0 +1,103 @@
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>Create Transfer</h2>
+    <p>Initiate a stock transfer between warehouses</p>
+  </div>
+  <a routerLink="/transfers" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i>
+    Back
+  </a>
+</div>
+
+<div class="card form-card">
+  <div class="card-body">
+    @if (error) {
+      <div class="alert alert-error">
+        <i class="fas fa-exclamation-circle"></i>
+        {{ error }}
+      </div>
+    }
+
+    <form (ngSubmit)="submit()">
+      <div class="form-section">
+        <div class="form-section-title">Route</div>
+        <div class="form-group">
+          <label class="form-label" for="source">
+            <i class="fas fa-building" style="margin-right: 0.375rem; color: var(--primary-500);"></i>
+            Source Warehouse
+          </label>
+          <select id="source" class="form-select" [(ngModel)]="sourceWarehouse" name="source" required>
+            <option value="">Select source warehouse</option>
+            @for (wh of warehouses; track wh._id) {
+              <option [value]="wh._id">{{ wh.name }} — {{ wh.location }}</option>
+            }
+          </select>
+        </div>
+        <div style="display: flex; justify-content: center; padding: 0.5rem 0;">
+          <div style="width: 2px; height: 24px; background: var(--gray-300); border-radius: 1px;"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="dest">
+            <i class="fas fa-map-pin" style="margin-right: 0.375rem; color: var(--success-500);"></i>
+            Destination Warehouse
+          </label>
+          <select id="dest" class="form-select" [(ngModel)]="destWarehouse" name="dest" required>
+            <option value="">Select destination warehouse</option>
+            @for (wh of warehouses; track wh._id) {
+              @if (wh._id !== sourceWarehouse) {
+                <option [value]="wh._id">{{ wh.name }} — {{ wh.location }}</option>
+              }
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Stock Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="sku">SKU</label>
+            @if (sourceWarehouse && getAvailableSkus().length > 0) {
+              <select id="sku" class="form-select" [(ngModel)]="sku" name="sku" required>
+                <option value="">Select SKU</option>
+                @for (availableSku of getAvailableSkus(); track availableSku) {
+                  <option [value]="availableSku">{{ availableSku }}</option>
+                }
+              </select>
+            } @else {
+              <input type="text" id="sku" class="form-input" [(ngModel)]="sku" name="sku" placeholder="Enter SKU code">
+            }
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="quantity">Quantity</label>
+            <input type="number" id="quantity" class="form-input" [(ngModel)]="quantity" name="quantity" min="1" [max]="getAvailableQuantity()" required>
+            @if (sourceWarehouse && sku) {
+              <span class="form-hint">Available: {{ getAvailableQuantity() }} units</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Additional Information</div>
+        <div class="form-group">
+          <label class="form-label" for="notes">Notes (Optional)</label>
+          <textarea id="notes" class="form-textarea" [(ngModel)]="notes" name="notes" placeholder="Add any notes about this transfer..."></textarea>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a routerLink="/transfers" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          @if (loading) {
+            <i class="fas fa-spinner fa-spin"></i>
+            Creating...
+          } @else {
+            <i class="fas fa-paper-plane"></i>
+            Create Transfer
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

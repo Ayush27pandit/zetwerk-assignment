@@ -1,0 +1,69 @@
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>Create Warehouse</h2>
+    <p>Add a new warehouse location to your network</p>
+  </div>
+  <a routerLink="/warehouses" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i>
+    Back
+  </a>
+</div>
+
+<div class="card form-card">
+  <div class="card-body">
+    @if (error) {
+      <div class="alert alert-error">
+        <i class="fas fa-exclamation-circle"></i>
+        {{ error }}
+      </div>
+    }
+
+    <form (ngSubmit)="submit()">
+      <div class="form-section">
+        <div class="form-section-title">Basic Information</div>
+        <div class="form-group">
+          <label class="form-label" for="name">Warehouse Name</label>
+          <input type="text" id="name" class="form-input" [(ngModel)]="name" name="name" placeholder="e.g., Mumbai Distribution Center">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="location">Location</label>
+          <input type="text" id="location" class="form-input" [(ngModel)]="location" name="location" placeholder="e.g., Mumbai, Maharashtra">
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Initial Stock (Optional)</div>
+        <div class="stock-entries">
+          @for (entry of stockEntries; track trackByIndex($index)) {
+            <div class="stock-entry-row">
+              <input type="text" class="form-input" [(ngModel)]="entry.sku" [name]="'sku_' + $index" placeholder="SKU code">
+              <input type="number" class="form-input" [(ngModel)]="entry.quantity" [name]="'qty_' + $index" placeholder="Qty" min="0">
+              @if (stockEntries.length > 1) {
+                <button type="button" class="btn btn-icon btn-secondary" (click)="removeStockEntry($index)" style="color: var(--error-500);">
+                  <i class="fas fa-times"></i>
+                </button>
+              }
+            </div>
+          }
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="addStockEntry()" style="margin-top: 0.75rem;">
+          <i class="fas fa-plus"></i>
+          Add SKU
+        </button>
+      </div>
+
+      <div class="form-actions">
+        <a routerLink="/warehouses" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          @if (loading) {
+            <i class="fas fa-spinner fa-spin"></i>
+            Creating...
+          } @else {
+            <i class="fas fa-check"></i>
+            Create Warehouse
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

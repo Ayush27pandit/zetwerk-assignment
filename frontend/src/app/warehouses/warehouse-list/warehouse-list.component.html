@@ -1,0 +1,78 @@
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>Warehouses</h2>
+    <p>Manage your warehouse locations and inventory</p>
+  </div>
+  <a routerLink="/warehouses/create" class="btn btn-primary">
+    <i class="fas fa-plus"></i>
+    New Warehouse
+  </a>
+</div>
+
+@if (error) {
+  <div class="alert alert-error">
+    <i class="fas fa-exclamation-circle"></i>
+    {{ error }}
+  </div>
+}
+
+@if (loading) {
+  <div class="loading">
+    <div class="spinner"></div>
+    <span class="loading-text">Loading warehouses...</span>
+  </div>
+} @else if (warehouses.length === 0) {
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <i class="fas fa-building"></i>
+      </div>
+      <h3>No warehouses yet</h3>
+      <p>Create your first warehouse to start managing inventory</p>
+      <a routerLink="/warehouses/create" class="btn btn-primary" style="margin-top: 1rem;">
+        <i class="fas fa-plus"></i>
+        Create Warehouse
+      </a>
+    </div>
+  </div>
+} @else {
+  <div class="grid grid-2">
+    @for (warehouse of warehouses; track warehouse._id) {
+      <div class="warehouse-card">
+        <div class="warehouse-card-header">
+          <div>
+            <h3>{{ warehouse.name }}</h3>
+            <div class="warehouse-card-location">
+              <i class="fas fa-map-marker-alt"></i>
+              {{ warehouse.location }}
+            </div>
+          </div>
+          <div class="warehouse-icon">
+            <i class="fas fa-boxes-stacked"></i>
+          </div>
+        </div>
+        <div class="warehouse-card-body">
+          <div class="warehouse-stats">
+            <div class="warehouse-stat">
+              <span class="warehouse-stat-value">{{ getStockSummary(warehouse.stock) }}</span>
+              <span class="warehouse-stat-label">Total Units</span>
+            </div>
+            <div class="warehouse-stat">
+              <span class="warehouse-stat-value">{{ getSkuCount(warehouse.stock) }}</span>
+              <span class="warehouse-stat-label">SKU Types</span>
+            </div>
+          </div>
+        </div>
+        <div class="warehouse-card-footer">
+          <a [routerLink]="['/warehouses', warehouse._id]" class="btn btn-secondary btn-sm">
+            <i class="fas fa-eye"></i>
+            View Details
+          </a>
+          <button class="btn btn-secondary btn-sm" (click)="deleteWarehouse(warehouse._id, warehouse.name)" style="color: var(--error-500);">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}
