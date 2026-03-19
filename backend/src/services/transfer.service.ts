@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-import { Transfer, ITransfer, TransferStatus, IStatusHistoryEntry } from "../models/Transfer.model";
+import { Transfer, ITransfer, TransferStatus } from "../models/Transfer.model";
 import { Warehouse } from "../models/Warehouse.model";
 import { AppError } from "../middleware/errorHandler";
 
@@ -160,50 +159,57 @@ export class TransferService {
   }
 
   private async completeTransfer(transfer: ITransfer, reason?: string): Promise<ITransfer> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const stockField = `stock.${transfer.sku}`;
 
-    try {
-      const source = await Warehouse.findById(transfer.sourceWarehouse).session(session);
-      const dest = await Warehouse.findById(transfer.destWarehouse).session(session);
+    // ATOMIC DEBIT: Only succeeds if stock >= quantity (race-condition safe)
+    // findOneAndUpdate with $inc + $gte is atomic at MongoDB level
+    const debitedSource = await Warehouse.findOneAndUpdate(
+      {
+        _id: transfer.sourceWarehouse,
+        [stockField]: { $gte: transfer.quantity },
+      },
+      {
+        $inc: { [stockField]: -transfer.quantity },
+      },
+      { new: true }
+    );
 
-      if (!source || !dest) {
-        throw new AppError("Warehouse not found during completion", 404, "NOT_FOUND");
-      }
-
-      const sourceStock = source.stock.get(transfer.sku) || 0;
-      if (sourceStock < transfer.quantity) {
-        throw new AppError(
-          `Insufficient stock at completion. Available: ${sourceStock}, Required: ${transfer.quantity}`,
-          409,
-          "INSUFFICIENT_STOCK"
-        );
-      }
-
-      source.stock.set(transfer.sku, sourceStock - transfer.quantity);
-      await source.save({ session });
-
-      const destStock = dest.stock.get(transfer.sku) || 0;
-      dest.stock.set(transfer.sku, destStock + transfer.quantity);
-      await dest.save({ session });
-
-      transfer.status = TransferStatus.COMPLETED;
-      transfer.completedAt = new Date();
-      transfer.statusHistory.push({
-        status: TransferStatus.COMPLETED,
-        changedAt: new Date(),
-        reason,
-      });
-      await transfer.save({ session });
-
-      await session.commitTransaction();
-      return transfer;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
+    if (!debitedSource) {
+      throw new AppError(
+        "Insufficient stock or concurrent modification detected",
+        409,
+        "INSUFFICIENT_STOCK"
+      );
     }
+
+    // ATOMIC CREDIT: Add stock to destination
+    const creditedDest = await Warehouse.findOneAndUpdate(
+      { _id: transfer.destWarehouse },
+      {
+        $inc: { [stockField]: transfer.quantity },
+      },
+      { new: true }
+    );
+
+    if (!creditedDest) {
+      // Rollback: restore source stock
+      await Warehouse.findByIdAndUpdate(transfer.sourceWarehouse, {
+        $inc: { [stockField]: transfer.quantity },
+      });
+      throw new AppError("Destination warehouse not found", 404, "NOT_FOUND");
+    }
+
+    // Update transfer status
+    transfer.status = TransferStatus.COMPLETED;
+    transfer.completedAt = new Date();
+    transfer.statusHistory.push({
+      status: TransferStatus.COMPLETED,
+      changedAt: new Date(),
+      reason,
+    });
+    await transfer.save();
+
+    return transfer;
   }
 
   static getAllowedTransitions(currentStatus: TransferStatus): TransferStatus[] {
