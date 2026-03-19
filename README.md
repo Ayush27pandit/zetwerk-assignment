@@ -200,25 +200,42 @@ PENDING → APPROVED → IN_TRANSIT → COMPLETED
 
 ## Deployment
 
-### Backend (Render.com)
+### Database (MongoDB Atlas) — Do this first
 
-1. Connect GitHub repository
-2. Set build command: `npm run build`
-3. Set start command: `npm start`
-4. Add environment variables in dashboard
+1. Create free M0 cluster at [mongodb.com/atlas](https://mongodb.com/atlas)
+2. Create database user with read/write permissions
+3. Whitelist `0.0.0.0/0` for demo (or your IPs)
+4. Copy connection string — format: `mongodb+srv://user:pass@cluster.mongodb.net/stock-transfer`
 
-### Frontend (Vercel/Netlify)
+### Backend (Railway)
 
-1. Connect GitHub repository
-2. Set build command: `ng build --configuration=production`
-3. Set output directory: `dist/frontend/browser`
-4. Update `environment.prod.ts` with live API URL
+1. Go to [railway.app](https://railway.app) and sign up/login
+2. Click **New Project** → **Deploy from GitHub repo**
+3. Select `stock-transfer/backend` folder (or set root directory to `backend`)
+4. Railway will auto-detect Node.js and use `railway.json`
+5. Go to **Variables** tab and add:
+   ```
+   MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/stock-transfer
+   NODE_ENV=production
+   CORS_ORIGIN=https://your-frontend.vercel.app
+   ```
+6. Railway will auto-deploy and give you a URL like `https://stock-transfer-backend.up.railway.app`
+7. Test health: `https://your-url.up.railway.app/health`
 
-### Database (MongoDB Atlas)
+### Frontend (Vercel)
 
-1. Create free M0 cluster
-2. Whitelist `0.0.0.0/0` for demo
-3. Get connection string and set in backend `.env`
+1. Go to [vercel.com](https://vercel.com) and sign up/login
+2. Click **Add New** → **Project**
+3. Import your GitHub repo
+4. Set **Root Directory** to `frontend`
+5. Framework Preset: **Angular**
+6. Click **Deploy**
+7. After deployment, update `frontend/src/environments/environment.prod.ts` with your Railway URL:
+   ```typescript
+   apiUrl: 'https://your-railway-url.up.railway.app/api/v1'
+   ```
+8. Also update **CORS_ORIGIN** in Railway with your Vercel URL
+9. Redeploy both to apply changes
 
 ## License
 

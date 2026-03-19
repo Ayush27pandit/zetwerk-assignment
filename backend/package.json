@@ -2,6 +2,9 @@
   "name": "stock-transfer-backend",
   "version": "1.0.0",
   "main": "dist/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
@@ -18,7 +21,6 @@
     "express": "^5.2.1",
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
-    "mongodb-memory-server": "^11.0.1",
     "mongoose": "^9.3.1",
     "morgan": "^1.10.1"
   },
@@ -29,6 +31,7 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.5.0",
     "jest": "^30.3.0",
+    "mongodb-memory-server": "^11.0.1",
     "nodemon": "^3.1.14",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
