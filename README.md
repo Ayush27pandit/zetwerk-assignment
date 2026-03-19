@@ -8,8 +8,9 @@ A full-stack web application for managing warehouse stock and inter-warehouse tr
 - **Stock Level Management** — Maintain per-SKU quantities at each warehouse with non-negative constraint
 - **Transfer Request Creation** — Specify source warehouse, destination warehouse, SKU, quantity, and optional notes
 - **Transfer Status Lifecycle** — `PENDING → APPROVED → IN_TRANSIT → COMPLETED` with guarded transitions
-- **Stock Mutation on Completion** — Atomic debit source and credit destination when status reaches `COMPLETED`
+- **Atomic Stock Operations** — Race-condition safe debit/credit using MongoDB atomic `$inc` with `$gte` conditions
 - **Transfer List/History** — Paginated, filterable by warehouse, status, and date range
+- **Full Audit Trail** — Complete status history with timestamps and reasons for every transition
 
 ## Tech Stack
 
@@ -198,44 +199,96 @@ PENDING → APPROVED → IN_TRANSIT → COMPLETED
              CANCELLED  (before dispatch only)
 ```
 
+## Atomic Stock Operations
+
+The system uses **atomic MongoDB operations** to prevent race conditions during concurrent transfers.
+
+### How It Works
+
+When a transfer is completed, stock is moved using atomic `findOneAndUpdate` with conditional `$inc`:
+
+```javascript
+// Atomic debit: Only succeeds if stock >= quantity (race-condition safe)
+const debitedSource = await Warehouse.findOneAndUpdate(
+  {
+    _id: sourceWarehouseId,
+    [`stock.${sku}`]: { $gte: quantity }  // Condition check
+  },
+  {
+    $inc: { [`stock.${sku}`]: -quantity }  // Atomic decrement
+  },
+  { new: true }
+);
+
+if (!debitedSource) {
+  throw new AppError("Insufficient stock or concurrent modification", 409);
+}
+```
+
+### Race Condition Prevention
+
+```
+Time    Client A (30 units)       Client B (50 units)
+─────   ────────────────────────   ────────────────────────
+T1      Read: stock = 100
+T2                                  Read: stock = 100
+T3      findOneAndUpdate(≥30) ✓    (waiting)
+T4      stock = 70
+T5                                  findOneAndUpdate(≥50)? stock=70 < 50 ✗ FAILS
+```
+
+Both clients read 100, but only one succeeds because:
+- MongoDB's `findOneAndUpdate` is **atomic** (single operation)
+- The `$gte: quantity` check happens **inside** the update
+- Second client fails with `409 Conflict` (safe failure)
+
+### Rollback on Failure
+
+If credit to destination fails, source stock is automatically restored:
+
+```javascript
+// Credit destination (may fail)
+const creditedDest = await Warehouse.findOneAndUpdate(
+  { _id: destWarehouseId },
+  { $inc: { [`stock.${sku}`]: quantity } }
+);
+
+if (!creditedDest) {
+  // Rollback: restore source stock
+  await Warehouse.findByIdAndUpdate(sourceWarehouseId, {
+    $inc: { [`stock.${sku}`]: quantity }
+  });
+  throw new AppError("Destination warehouse not found", 404);
+}
+```
+
 ## Deployment
 
-### Database (MongoDB Atlas) — Do this first
+| Service   | Platform  | URL Example                                  |
+| --------- | --------- | -------------------------------------------- |
+| Database  | MongoDB Atlas | `mongodb+srv://user:pass@cluster.mongodb.net` |
+| Backend   | Railway   | `https://backend.up.railway.app`              |
+| Frontend  | Vercel    | `https://frontend.vercel.app`                 |
 
-1. Create free M0 cluster at [mongodb.com/atlas](https://mongodb.com/atlas)
-2. Create database user with read/write permissions
-3. Whitelist `0.0.0.0/0` for demo (or your IPs)
-4. Copy connection string — format: `mongodb+srv://user:pass@cluster.mongodb.net/stock-transfer`
+### Environment Variables
 
-### Backend (Railway)
+**MongoDB Atlas:**
+```
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/stock-transfer
+```
 
-1. Go to [railway.app](https://railway.app) and sign up/login
-2. Click **New Project** → **Deploy from GitHub repo**
-3. Select `stock-transfer/backend` folder (or set root directory to `backend`)
-4. Railway will auto-detect Node.js and use `railway.json`
-5. Go to **Variables** tab and add:
-   ```
-   MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/stock-transfer
-   NODE_ENV=production
-   CORS_ORIGIN=https://your-frontend.vercel.app
-   ```
-6. Railway will auto-deploy and give you a URL like `https://stock-transfer-backend.up.railway.app`
-7. Test health: `https://your-url.up.railway.app/health`
+**Railway (Backend):**
+```
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/stock-transfer
+NODE_ENV=production
+CORS_ORIGIN=https://your-frontend.vercel.app
+```
 
-### Frontend (Vercel)
-
-1. Go to [vercel.com](https://vercel.com) and sign up/login
-2. Click **Add New** → **Project**
-3. Import your GitHub repo
-4. Set **Root Directory** to `frontend`
-5. Framework Preset: **Angular**
-6. Click **Deploy**
-7. After deployment, update `frontend/src/environments/environment.prod.ts` with your Railway URL:
-   ```typescript
-   apiUrl: 'https://your-railway-url.up.railway.app/api/v1'
-   ```
-8. Also update **CORS_ORIGIN** in Railway with your Vercel URL
-9. Redeploy both to apply changes
+**Vercel (Frontend):**
+```typescript
+// frontend/src/environments/environment.prod.ts
+apiUrl: 'https://your-railway-url.up.railway.app/api/v1'
+```
 
 ## License
 
